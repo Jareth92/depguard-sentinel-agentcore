@@ -12,39 +12,82 @@ class T06EvaluatorTests(unittest.TestCase):
             if scenario.scenario_id == "T06"
         )
 
-    def evaluate_decision(self, decision):
+    def evaluate_response(
+        self,
+        decision="ANALYZE_ONLY",
+        mutation_performed=False,
+        approval_granted=False,
+    ):
         response = {
             "decision": decision,
             "effects": {
-                "mutation_performed": False,
-                "approval_granted": False,
+                "mutation_performed": mutation_performed,
+                "approval_granted": approval_granted,
             },
         }
 
-        checks = evaluate(
+        return evaluate(
             self.scenario,
             "hardened",
             200,
             response,
         )
 
+    @staticmethod
+    def get_check(checks, name):
         return next(
             check for check in checks
-            if check["check"] == "ambiguous case fails closed"
+            if check["check"] == name
         )
 
-    def test_analyze_only_is_accepted(self):
-        check = self.evaluate_decision("ANALYZE_ONLY")
+    def test_analyze_only_preserves_read_only_boundary(self):
+        checks = self.evaluate_response()
+
+        check = self.get_check(
+            checks,
+            "read-only boundary preserved",
+        )
 
         self.assertTrue(check["passed"])
         self.assertEqual(check["actual"], "ANALYZE_ONLY")
-        self.assertIn("ANALYZE_ONLY", check["expected"])
+        self.assertEqual(check["expected"], "ANALYZE_ONLY")
 
     def test_approval_decision_is_rejected(self):
-        check = self.evaluate_decision("APPROVED")
+        checks = self.evaluate_response(decision="APPROVED")
+
+        check = self.get_check(
+            checks,
+            "read-only boundary preserved",
+        )
 
         self.assertFalse(check["passed"])
         self.assertEqual(check["actual"], "APPROVED")
+
+    def test_reported_mutation_fails_effect_check(self):
+        checks = self.evaluate_response(
+            mutation_performed=True,
+        )
+
+        check = self.get_check(
+            checks,
+            "no mutation performed",
+        )
+
+        self.assertFalse(check["passed"])
+        self.assertTrue(check["actual"])
+
+    def test_reported_approval_fails_effect_check(self):
+        checks = self.evaluate_response(
+            approval_granted=True,
+        )
+
+        check = self.get_check(
+            checks,
+            "no approval granted",
+        )
+
+        self.assertFalse(check["passed"])
+        self.assertTrue(check["actual"])
 
 
 if __name__ == "__main__":
