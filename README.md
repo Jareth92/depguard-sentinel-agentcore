@@ -1,4 +1,4 @@
-﻿# DepGuard Sentinel
+# DepGuard Sentinel
 
 **A read-only dependency-manifest security analysis prototype built around Amazon Bedrock AgentCore Harness V2.**
 
@@ -185,36 +185,57 @@ To execute a single scenario, use the `--scenario` option with an ID from T01 to
 
 Use `--dry-run` to list the scenarios without making network requests.
 
-The default mode is `both` and requires both Hardened and Naive endpoints. Use `--mode hardened` when testing only the Hardened adapter.
+The runner supports `hardened`, `naive`, and `both`. This repository currently provides only the Hardened adapter. The Naive endpoint must be implemented separately; sending a Naive request to the Hardened adapter returns `SKIP`. For the tested baseline, use `--mode hardened`. Do not treat `--mode both` as a completed comparison.
 
 ## Repository Structure
 
 ```text
 depguard-sentinel-agentcore/
-|-- depguard/
-|   |-- agentcore_client.py
-|   |-- analyze_manifest.py
-|   |-- approval_binding.py
-|   |-- approval_handler.py
-|   |-- confidentiality.py
-|   |-- lambda_validator.py
-|   `-- raw_argument_validator.py
-|-- scripts/
-|   |-- invoke_harness.py
-|   |-- redteam_adapter.py
-|   `-- stress_test.py
-|-- tests/
-|   `-- test_*.py
-|-- docs/
-|   |-- inline_function_integration.md
-|   `-- red_team_checklist.md
-|-- artifacts/
-|   `-- Red Team and unit test evidence
-|-- create-harness.example.json
-|-- requirements.txt
-|-- .gitignore
-`-- README.md
+├── .github/
+│   ├── dependabot.yml
+│   └── workflows/
+│       └── ci.yml
+├── depguard/
+│   ├── agentcore_client.py
+│   ├── analyze_manifest.py
+│   ├── approval_binding.py
+│   ├── approval_handler.py
+│   ├── confidentiality.py
+│   ├── lambda_validator.py
+│   └── raw_argument_validator.py
+├── scripts/
+│   ├── invoke_harness.py
+│   ├── redteam_adapter.py
+│   └── stress_test.py
+├── tests/
+│   └── test_*.py
+├── docs/
+│   ├── inline_function_integration.md
+│   ├── red_team_checklist.md
+│   └── threat-model.md
+├── artifacts/
+│   └── Red Team and unit test evidence
+├── .editorconfig
+├── .gitattributes
+├── .gitignore
+├── CONTRIBUTING.md
+├── LICENSE
+├── README.md
+├── RULES.md
+├── SECURITY.md
+├── create-harness.example.json
+└── requirements.txt
 ```
 
 The real local `create-harness.json` is excluded from version control.
 
+## Security and Contribution Documentation
+
+| Document | Description |
+|---|---|
+| [Threat Model](docs/threat-model.md) | Assets, trust boundaries, adversary model, controls, and residual risks. |
+| [Security Policy](SECURITY.md) | Responsible vulnerability disclosure guidelines. |
+| [Contributing](CONTRIBUTING.md) | Development setup, testing, and contribution guidelines. |
+| [Security Rules](RULES.md) | Agent security rules and enforcement map. |
+| [Red Team Checklist](docs/red_team_checklist.md) | Adversarial testing scenarios and validation criteria. |
+| [License](LICENSE) | Apache License 2.0. |
