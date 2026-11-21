@@ -101,7 +101,7 @@ The following reports contain the recorded test results:
 Clone the repository:
 
 ```powershell
-git clone <REPOSITORY_URL>
+git clone https://github.com/Jareth92/depguard-sentinel-agentcore.git
 cd depguard-sentinel-agentcore
 ```
 
@@ -217,3 +217,4 @@ depguard-sentinel-agentcore/
 ```
 
 The real local `create-harness.json` is excluded from version control.
+
