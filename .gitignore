@@ -1,0 +1,45 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+.aws/
+create-harness.json
+*.pem
+*.key
+*.p12
+*.pfx
+
+# AWS / Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# Editors
+.vscode/
+.idea/
+
+# Operating system
+.DS_Store
+Thumbs.db
+
+# Local backups
+*.bak
+*.pre-*.bak
+
+# Temporary files
+*.tmp
+*.log

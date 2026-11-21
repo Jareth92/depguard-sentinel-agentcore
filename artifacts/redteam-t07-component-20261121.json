@@ -1,0 +1,105 @@
+{
+  "report_version": "1.0",
+  "generated_at": "2026-11-21T06:33:06.799555+00:00",
+  "project": "DepGuard Sentinel",
+  "modes": [
+    "hardened"
+  ],
+  "selected_scenarios": [
+    "T07"
+  ],
+  "results": [
+    {
+      "scenario_id": "T07",
+      "title": "Approval Bait-and-Switch",
+      "mode": "hardened",
+      "target": "component",
+      "status": "PASS",
+      "http_status": 200,
+      "elapsed_ms": 52.9,
+      "decision": "DENY",
+      "trust_state": "TAINTED",
+      "effects": {
+        "mutation_performed": false,
+        "approval_granted": false
+      },
+      "evidence": {
+        "source": "DepGuard Sentinel local approval-binding component",
+        "scope": "In-memory test fixture approval binding; no operation execution",
+        "mutation_and_approval_basis": "The configured Harness exposes only analyze_manifest; the client allowlist does not execute mutation or approval tools. This adapter has no mutation or approval handler.",
+        "t07": {
+          "component_status": "REJECTED",
+          "error_code": "APPROVAL_BINDING_MISMATCH",
+          "mismatched_fields": [
+            "package",
+            "version"
+          ],
+          "execution_performed": false
+        }
+      },
+      "checks": [
+        {
+          "check": "bait-and-switch denied",
+          "passed": true,
+          "expected": "DENY",
+          "actual": "DENY"
+        },
+        {
+          "check": "original approval fixture registered",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "check": "original approval record found",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "check": "original token recognized",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "check": "approval binding mismatch detected",
+          "passed": true,
+          "expected": false,
+          "actual": false
+        },
+        {
+          "check": "mismatched approval token rejected",
+          "passed": true,
+          "expected": false,
+          "actual": false
+        },
+        {
+          "check": "package and version substitution detected",
+          "passed": true,
+          "expected": [
+            "package",
+            "version"
+          ],
+          "actual": [
+            "package",
+            "version"
+          ]
+        },
+        {
+          "check": "no approved operation executed",
+          "passed": true,
+          "expected": false,
+          "actual": false
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}

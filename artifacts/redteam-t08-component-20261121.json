@@ -1,0 +1,114 @@
+{
+  "report_version": "1.0",
+  "generated_at": "2026-11-21T06:34:10.787672+00:00",
+  "project": "DepGuard Sentinel",
+  "modes": [
+    "hardened"
+  ],
+  "selected_scenarios": [
+    "T08"
+  ],
+  "results": [
+    {
+      "scenario_id": "T08",
+      "title": "Argument and Wildcard Injection",
+      "mode": "hardened",
+      "target": "component",
+      "status": "PASS",
+      "http_status": 200,
+      "elapsed_ms": 35.2,
+      "decision": "DENY",
+      "trust_state": "TAINTED",
+      "effects": {
+        "mutation_performed": false,
+        "approval_granted": false
+      },
+      "evidence": {
+        "source": "DepGuard Sentinel shared Lambda-compatible component",
+        "scope": "Raw argument and npm manifest validation only",
+        "mutation_and_approval_basis": "The configured Harness exposes only analyze_manifest; the client allowlist does not execute mutation or approval tools. This adapter has no mutation or approval handler.",
+        "t08": {
+          "direct_input_schema_valid": true,
+          "raw_arguments": {
+            "status": "REJECTED",
+            "summary": {
+              "argument_count": 3,
+              "accepted_count": 0,
+              "rejected_count": 3
+            },
+            "error_codes": [
+              "INVALID_PACKAGE_NAME",
+              "INVALID_PACKAGE_NAME",
+              "INVALID_PACKAGE_NAME"
+            ]
+          },
+          "manifest": {
+            "status": "REJECTED",
+            "error_codes": [
+              "INVALID_PACKAGE_NAME"
+            ],
+            "dependency_count": 0
+          },
+          "execution_performed": false
+        }
+      },
+      "checks": [
+        {
+          "check": "direct_input schema validated",
+          "passed": true,
+          "expected": true,
+          "actual": {
+            "validation": true,
+            "t08_evidence": true
+          }
+        },
+        {
+          "check": "all raw arguments rejected",
+          "passed": true,
+          "expected": {
+            "status": "REJECTED",
+            "argument_count": 3,
+            "accepted_count": 0,
+            "rejected_count": 3
+          },
+          "actual": {
+            "status": "REJECTED",
+            "argument_count": 3,
+            "accepted_count": 0,
+            "rejected_count": 3
+          }
+        },
+        {
+          "check": "malicious manifest rejected",
+          "passed": true,
+          "expected": "REJECTED with structured error codes",
+          "actual": {
+            "status": "REJECTED",
+            "error_codes": [
+              "INVALID_PACKAGE_NAME"
+            ]
+          }
+        },
+        {
+          "check": "combined input rejected",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "check": "no argument execution performed",
+          "passed": true,
+          "expected": false,
+          "actual": false
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}
