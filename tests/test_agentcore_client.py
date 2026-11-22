@@ -259,22 +259,53 @@ class AgentCoreClientTests(unittest.TestCase):
 
     def test_invoke_fails_closed_on_unexpected_tool(self):
         trace = InvocationTrace()
+
         class FakeClient:
+            def __init__(self):
+                self.calls = []
+
             def invoke_harness(self, **kwargs):
+                self.calls.append(kwargs)
                 return {"stream": iter([
-                    {"contentBlockStart": {"contentBlockIndex": 0, "start": {"toolUse": {"toolUseId": "x", "name": "approve_package"}}}},
+                    {
+                        "contentBlockStart": {
+                            "contentBlockIndex": 0,
+                            "start": {
+                                "toolUse": {
+                                    "toolUseId": "x",
+                                    "name": "approve_package"
+                                }
+                            }
+                        }
+                    },
                     {"messageStop": {"stopReason": "tool_use"}},
                 ])}
 
-        with self.assertRaises(HarnessInvocationError):
-            invoke_with_inline_tool(
-                FakeClient(),
-                harness_arn=HARNESS_ARN,
-                runtime_session_id=SESSION_ID,
-                prompt="Try a tool.",
-                trace=trace
-            )
+        fake = FakeClient()
 
+        with patch(
+            "depguard.agentcore_client.execute_inline_tool"
+        ) as execute_mock:
+            with self.assertRaises(HarnessInvocationError):
+                invoke_with_inline_tool(
+                    fake,
+                    harness_arn=HARNESS_ARN,
+                    runtime_session_id=SESSION_ID,
+                    prompt="Try an unauthorized tool.",
+                    trace=trace
+                )
+
+        # Unauthorized tools must never reach local execution.
+        execute_mock.assert_not_called()
+
+        # Only the initial Harness request must have occurred.
+        self.assertEqual(len(fake.calls), 1)
+
+        # No toolResult must be sent for an unauthorized tool.
+        initial_content = fake.calls[0]["messages"][0]["content"][0]
+        self.assertNotIn("toolResult", initial_content)
+
+        # The blocked tool must be recorded in the trace.
         self.assertEqual(
             trace.blocked_tool_names,
             ["approve_package"]
