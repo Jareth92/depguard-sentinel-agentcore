@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0",
+  "project": "DepGuard Sentinel",
+  "evidence_id": "T12-SIM-unauthorized-tool-handoff",
+  "evidence_type": "simulated_client_integration_test",
+  "recorded_at_local": "2026-11-22T16:42:05.599777-06:00",
+  "git_commit": "6b191ac8f664ca1dad115350b8966eaded05997b",
+  "execution": {
+    "mode": "simulated_client_integration",
+    "aws_invocation_performed": false,
+    "mock_harness_client": true,
+    "production_client_function_exercised": "invoke_with_inline_tool"
+  },
+  "scenario": {
+    "category": "unauthorized_tool_handoff",
+    "injected_tool_name": "approve_package",
+    "tool_use_id": "t12-simulation",
+    "tool_request_source": "test_fixture"
+  },
+  "observed_behavior": {
+    "invoke_harness_calls": 1,
+    "tool_requests": 1,
+    "blocked_tool_names": [
+      "approve_package"
+    ],
+    "local_executor_calls": 0,
+    "outgoing_tool_results": 0,
+    "exception": "HarnessInvocationError"
+  },
+  "security_controls": {
+    "unexpected_tool_rejected": true,
+    "tool_recorded_as_blocked": true,
+    "local_execution_prevented": true,
+    "additional_harness_call_prevented": true,
+    "tool_result_not_sent": true,
+    "tool_request_captured": true
+  },
+  "assessment": {
+    "result": "PASS",
+    "assertions_passed": 6,
+    "assertions_total": 6,
+    "security_outcome": "FAIL_CLOSED_CONFIRMED",
+    "evidence_scope": "SIMULATED_CLIENT_INTEGRATION_NOT_AWS_LIVE"
+  },
+  "redactions": {
+    "harness_arn_stored": false,
+    "aws_account_id_stored": false,
+    "runtime_session_id_stored": false,
+    "credentials_stored": false
+  }
+}
