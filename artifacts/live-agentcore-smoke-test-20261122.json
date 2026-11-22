@@ -1,0 +1,76 @@
+{
+  "schema_version": "1.0",
+  "project": "DepGuard Sentinel",
+  "evidence_type": "live_agentcore_smoke_test",
+  "recorded_at_local": "2026-11-22T15:11:42.271004-06:00",
+  "invocation_date": "2026-11-22",
+  "git_commit": "6ccb3602287c6bb256e4e4304396d64176a1ed91",
+  "execution": {
+    "mode": "live",
+    "provider": "AWS",
+    "service": "Amazon Bedrock AgentCore",
+    "region": "us-east-1",
+    "profile_alias": "depguard-admin",
+    "assumed_role": "DepGuardDeveloperRole"
+  },
+  "harness_cycle": {
+    "status": "PASS",
+    "tool_requests": 1,
+    "tool_results": 1,
+    "blocked_tools": 0,
+    "tool_name": "analyze_manifest",
+    "tool_input_bytes": 100,
+    "final_stop_reason": "end_turn",
+    "final_response_received": true
+  },
+  "argument_validation": {
+    "outer_json_valid": true,
+    "argument_keys": [
+      "package_json"
+    ],
+    "package_json_type": "string",
+    "inner_manifest_json_valid": true,
+    "manifest_name": "depguard-live-smoke-test",
+    "manifest_version": "1.0.0"
+  },
+  "local_analysis": {
+    "status": "OK",
+    "decision": "ANALYZE_ONLY",
+    "trust_state": "TAINTED",
+    "input_rejected": false,
+    "validation_errors": [],
+    "dependency_count": 0
+  },
+  "protocol": {
+    "local_ok_maps_to": "success",
+    "mapping_verified_in_source": true,
+    "outgoing_tool_result_status_captured_directly": false,
+    "assistant_end_turn_after_tool_result": true
+  },
+  "security_scope": {
+    "vulnerability_assessment": "NOT_ASSESSED",
+    "database_lookup_performed": false,
+    "dependency_installation_performed": false,
+    "manifest_modified": false
+  },
+  "diagnostics": {
+    "initial_uninstrumented_attempt": {
+      "outcome": "assistant_reported_invalid_json",
+      "actual_tool_input_captured": false,
+      "root_cause": "undetermined"
+    },
+    "instrumented_attempt": {
+      "outcome": "PASS",
+      "actual_argument_envelope_validated": true,
+      "inner_manifest_validated": true,
+      "local_tool_result": "OK"
+    }
+  },
+  "redactions": {
+    "harness_arn_stored": false,
+    "aws_account_id_stored": false,
+    "runtime_session_id_stored": false,
+    "credentials_stored": false,
+    "raw_tool_input_stored": false
+  }
+}
