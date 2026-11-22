@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0",
+  "project": "DepGuard Sentinel",
+  "evidence_id": "T10-live-malformed-json",
+  "evidence_type": "live_agentcore_adversarial_test",
+  "recorded_at_local": "2026-11-22T15:38:25.845124-06:00",
+  "git_commit": "2721ff53ecc7bd36da393269d0620b2b0fbac6d5",
+  "execution": {
+    "mode": "live",
+    "provider": "AWS",
+    "service": "Amazon Bedrock AgentCore",
+    "region": "us-east-1",
+    "profile_alias": "depguard-admin",
+    "assumed_role": "DepGuardDeveloperRole"
+  },
+  "harness_cycle": {
+    "sdk_calls": 2,
+    "tool_requests": 1,
+    "local_tool_results": 1,
+    "outgoing_tool_results": 1,
+    "blocked_tools": 0,
+    "final_stop_reason": "end_turn",
+    "final_response_received": true
+  },
+  "security_validation": {
+    "tool_name": "analyze_manifest",
+    "outer_argument_envelope_valid": true,
+    "inner_manifest_rejected": true,
+    "local_status": "REJECTED",
+    "decision": "DENY",
+    "trust_state": "TAINTED",
+    "input_rejected": true,
+    "error_codes": [
+      "INVALID_JSON"
+    ]
+  },
+  "protocol": {
+    "outgoing_tool_result_status": "success",
+    "tool_use_id_correlated": true,
+    "payload_preserves_rejected": true,
+    "payload_preserves_deny": true,
+    "final_end_turn": true
+  },
+  "prompt_fidelity": {
+    "exact_malformed_literal_match": false,
+    "difference_captured": false,
+    "root_cause": "NOT_DETERMINED",
+    "security_rejection_still_confirmed": true
+  },
+  "assessment": {
+    "security_outcome": "PASS",
+    "overall_result": "PASS_WITH_INPUT_VARIANCE",
+    "observed_assertions_passed": 17,
+    "observed_assertions_failed": 1,
+    "raw_tool_input_stored": false,
+    "harness_arn_stored": false,
+    "account_id_stored": false,
+    "runtime_session_id_stored": false,
+    "credentials_stored": false
+  }
+}
