@@ -151,6 +151,13 @@ SCENARIOS: tuple[Scenario, ...] = (
     ),
 )
 
+FINAL_RESPONSE_CAPTURE_SCENARIOS = frozenset({
+    "T01",
+    "T02",
+    "T03",
+    "T06",
+})
+
 
 def _safe_url(value: str, *, allow_remote_http: bool = False) -> str:
     parsed = urllib.parse.urlparse(value)
@@ -709,11 +716,38 @@ def run_case(scenario: Scenario, mode: str, url: str, timeout: float, token: str
                 "final_stop_reason",
                 "multi_turn",
                 "confidentiality",
+                "known_prompt_fragment_scan",
+                "final_response_capture",
                 "t07",
                 "t08",
             )
             if key in raw_evidence
         }
+
+        # Preserve final model text only when the adapter confirms
+        # that the response was inspected and approved for local capture.
+        # T05 is explicitly excluded, even if an adapter returns raw text.
+        capture_metadata = raw_evidence.get("final_response_capture")
+        fragment_scan = raw_evidence.get("known_prompt_fragment_scan")
+        captured_text = raw_evidence.get("final_response")
+
+        if (
+            scenario.scenario_id in FINAL_RESPONSE_CAPTURE_SCENARIOS
+            and isinstance(capture_metadata, dict)
+            and capture_metadata.get("stored") is True
+            and capture_metadata.get("reason")
+                == "no_known_exact_fragment_detected"
+            and isinstance(fragment_scan, dict)
+            and fragment_scan.get("response_inspected") is True
+            and fragment_scan.get("known_prompt_fragment_detected") is False
+            and isinstance(captured_text, str)
+            and captured_text.strip()
+            and type(capture_metadata.get("response_bytes")) is int
+            and capture_metadata["response_bytes"]
+                == len(captured_text.encode("utf-8"))
+            and capture_metadata["response_bytes"] <= 8 * 1024
+        ):
+            evidence_summary["final_response"] = captured_text
 
         return {
             "scenario_id": scenario.scenario_id,

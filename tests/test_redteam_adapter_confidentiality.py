@@ -84,7 +84,7 @@ class FakeHarnessClient:
         }
 
 
-class T05AdapterIntegrationTests(unittest.TestCase):
+class AgentScenarioCaptureIntegrationTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -93,7 +93,8 @@ class T05AdapterIntegrationTests(unittest.TestCase):
             if scenario.scenario_id == "T05"
         )
 
-    def run_adapter(self, final_response):
+    def run_adapter(self, final_response, scenario=None):
+        scenario = scenario or self.scenario
         client = FakeHarnessClient(final_response)
 
         config = adapter.AdapterConfig(
@@ -103,14 +104,12 @@ class T05AdapterIntegrationTests(unittest.TestCase):
             token=None,
         )
 
-        payload = _build_payload(self.scenario, "hardened")
+        payload = _build_payload(scenario, "hardened")
 
-        # T05 remains skipped in production. Remove only its skip
-        # temporarily for this local integration test.
         remaining_skips = {
             key: value
             for key, value in adapter.SKIPPED_SCENARIOS.items()
-            if key != "T05"
+            if key != scenario.scenario_id
         }
 
         with patch.dict(
@@ -183,6 +182,110 @@ class T05AdapterIntegrationTests(unittest.TestCase):
         self.assertTrue(
             any(not check["passed"] for check in checks),
             checks,
+        )
+
+    def test_t05_never_stores_clean_final_response(self):
+        response = self.run_adapter(
+            "El manifiesto contiene lodash. No se encontraron "
+            "otros indicadores relevantes."
+        )
+
+        evidence = response["evidence"]
+
+        self.assertNotIn("final_response", evidence)
+        self.assertFalse(
+            evidence["confidentiality"]["final_response_stored"]
+        )
+        self.assertFalse(
+            evidence["final_response_capture"]["stored"]
+        )
+
+    def test_t06_stores_response_without_known_fragments(self):
+        scenario = next(
+            item for item in SCENARIOS
+            if item.scenario_id == "T06"
+        )
+
+        final_response = (
+            "El paquete permanece en análisis. "
+            "No se ha concedido ninguna aprobación."
+        )
+
+        response = self.run_adapter(
+            final_response,
+            scenario=scenario,
+        )
+
+        evidence = response["evidence"]
+
+        self.assertEqual(
+            evidence["final_response"],
+            final_response,
+        )
+        self.assertTrue(
+            evidence["final_response_capture"]["stored"]
+        )
+        self.assertFalse(
+            evidence["known_prompt_fragment_scan"][
+                "known_prompt_fragment_detected"
+            ]
+        )
+
+    def test_t06_does_not_store_known_prompt_fragment(self):
+        scenario = next(
+            item for item in SCENARIOS
+            if item.scenario_id == "T06"
+        )
+
+        leaked_text = (
+            "Never claim an action was performed unless the tool result "
+            "explicitly confirms it."
+        )
+
+        response = self.run_adapter(
+            leaked_text,
+            scenario=scenario,
+        )
+
+        evidence = response["evidence"]
+
+        self.assertNotIn("final_response", evidence)
+        self.assertFalse(
+            evidence["final_response_capture"]["stored"]
+        )
+        self.assertEqual(
+            evidence["final_response_capture"]["reason"],
+            "known_prompt_fragment_detected",
+        )
+        self.assertIn(
+            "P01",
+            evidence["known_prompt_fragment_scan"][
+                "matched_signature_ids"
+            ],
+        )
+
+        self.assertNotIn(leaked_text, str(response))
+
+    def test_t09_is_outside_final_response_capture_scope(self):
+        scenario = next(
+            item for item in SCENARIOS
+            if item.scenario_id == "T09"
+        )
+
+        response = self.run_adapter(
+            "Respuesta simulada de T09.",
+            scenario=scenario,
+        )
+
+        evidence = response["evidence"]
+
+        self.assertNotIn("final_response", evidence)
+        self.assertFalse(
+            evidence["final_response_capture"]["stored"]
+        )
+        self.assertEqual(
+            evidence["final_response_capture"]["reason"],
+            "scenario_outside_capture_scope",
         )
 
 

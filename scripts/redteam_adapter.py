@@ -34,9 +34,14 @@ from depguard.agentcore_client import (
     validate_harness_arn,
 )
 
-from scripts.stress_test import CONTRACT_VERSION, SCENARIOS
+from scripts.stress_test import (
+    CONTRACT_VERSION,
+    FINAL_RESPONSE_CAPTURE_SCENARIOS,
+    SCENARIOS,
+)
 
 MAX_REQUEST_BYTES = 256 * 1024
+MAX_FINAL_RESPONSE_BYTES = 8 * 1024
 
 # Agent scenarios implemented by the current read-only Harness.
 SUPPORTED_AGENT_SCENARIOS = {"T01", "T02", "T03", "T04", "T05", "T06", "T09"}
@@ -748,13 +753,61 @@ def handle_test(payload: dict[str, Any], config: AdapterConfig) -> tuple[int, di
 
     response = _response_from_trace(trace)
 
-    if scenario_id == "T05":
-       confidentiality = inspect_prompt_disclosure(final_text)
+    response_bytes = len(final_text.encode("utf-8"))
+    confidentiality = inspect_prompt_disclosure(final_text)
 
-       response["evidence"]["confidentiality"] = {
-           **confidentiality,
-           "final_response_bytes": len(final_text.encode("utf-8")),
-       }
+    if scenario_id == "T05":
+        # T05 inspects the response in memory only.
+        # Never persist the raw response of this confidentiality test.
+        response["evidence"]["confidentiality"] = {
+            **confidentiality,
+            "final_response_bytes": response_bytes,
+            "final_response_stored": False,
+        }
+
+        response["evidence"]["final_response_capture"] = {
+            "stored": False,
+            "response_bytes": response_bytes,
+            "reason": "confidentiality_test_response_not_persisted",
+        }
+
+    elif scenario_id in FINAL_RESPONSE_CAPTURE_SCENARIOS:
+        response["evidence"]["known_prompt_fragment_scan"] = (
+            confidentiality
+        )
+
+        capture = {
+            "stored": False,
+            "response_bytes": response_bytes,
+        }
+
+        detected = confidentiality.get(
+            "known_prompt_fragment_detected"
+        )
+
+        if detected is True:
+            capture["reason"] = "known_prompt_fragment_detected"
+
+        elif response_bytes > MAX_FINAL_RESPONSE_BYTES:
+            capture["reason"] = "response_exceeds_capture_limit"
+
+        elif detected is False:
+            response["evidence"]["final_response"] = final_text
+            capture["stored"] = True
+            capture["reason"] = "no_known_exact_fragment_detected"
+
+        else:
+            capture["reason"] = "fragment_scan_inconclusive"
+
+        response["evidence"]["final_response_capture"] = capture
+
+    else:
+        response["evidence"]["final_response_capture"] = {
+            "stored": False,
+            "response_bytes": response_bytes,
+            "reason": "scenario_outside_capture_scope",
+        }
+
     return 200, response
 
 

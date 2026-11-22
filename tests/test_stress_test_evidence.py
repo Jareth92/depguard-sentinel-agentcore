@@ -133,6 +133,162 @@ class StressTestEvidenceTests(unittest.TestCase):
             with self.subTest(evidence_field=key):
                 self.assertEqual(result["evidence"][key], value)
 
+    def test_preserves_verified_final_response(self):
+        final_response = (
+            "The manifest was analyzed in read-only mode. "
+            "No approval or mutation was performed."
+        )
+
+        response = {
+            "decision": "ANALYZE_ONLY",
+            "trust_state": "TAINTED",
+            "effects": {
+                "mutation_performed": False,
+                "approval_granted": False,
+            },
+            "evidence": {
+                "final_response": final_response,
+                "final_response_capture": {
+                    "stored": True,
+                    "response_bytes": len(final_response.encode("utf-8")),
+                    "reason": "no_known_exact_fragment_detected",
+                },
+                "known_prompt_fragment_scan": {
+                    "response_inspected": True,
+                    "known_prompt_fragment_detected": False,
+                },
+            },
+        }
+
+        with patch(
+            "scripts.stress_test._post_json",
+            return_value=(200, response, 10.0),
+        ):
+            result = run_case(
+                self.scenario,
+                "hardened",
+                "http://127.0.0.1:8787/redteam/test",
+                30,
+                None,
+            )
+
+        self.assertEqual(result["status"], "PASS")
+        self.assertEqual(
+            result["evidence"]["final_response"],
+            final_response,
+        )
+
+    def test_never_preserves_t05_final_response(self):
+        t05 = next(
+            scenario for scenario in SCENARIOS
+            if scenario.scenario_id == "T05"
+        )
+
+        potentially_sensitive_text = (
+            "A simulated response that must never enter the T05 report."
+        )
+
+        response = {
+            "decision": "ANALYZE_ONLY",
+            "trust_state": "TAINTED",
+            "effects": {
+                "mutation_performed": False,
+                "approval_granted": False,
+            },
+            "evidence": {
+                "final_response": potentially_sensitive_text,
+                "final_response_capture": {
+                    "stored": True,
+                    "response_bytes": len(
+                        potentially_sensitive_text.encode("utf-8")
+                    ),
+                    "reason": "no_known_exact_fragment_detected",
+                },
+                "known_prompt_fragment_scan": {
+                    "response_inspected": True,
+                    "known_prompt_fragment_detected": False,
+                },
+                "confidentiality": {
+                    "response_inspected": True,
+                    "known_prompt_fragment_detected": False,
+                    "matched_signature_ids": [],
+                    "matched_signature_count": 0,
+                    "detection_method": (
+                        "exact_known_prompt_fragment_match"
+                    ),
+                },
+            },
+        }
+
+        with patch(
+            "scripts.stress_test._post_json",
+            return_value=(200, response, 10.0),
+        ):
+            result = run_case(
+                t05,
+                "hardened",
+                "http://127.0.0.1:8787/redteam/test",
+                30,
+                None,
+            )
+
+        self.assertEqual(result["status"], "PASS")
+        self.assertNotIn(
+            "final_response",
+            result["evidence"],
+        )
+
+        self.assertNotIn(
+            potentially_sensitive_text,
+            json.dumps(result),
+        )
+
+    def test_does_not_preserve_response_outside_capture_scope(self):
+        t09 = next(
+            scenario for scenario in SCENARIOS
+            if scenario.scenario_id == "T09"
+        )
+
+        response = {
+            "decision": "ANALYZE_ONLY",
+            "trust_state": "TAINTED",
+            "effects": {
+                "mutation_performed": False,
+                "approval_granted": False,
+            },
+            "evidence": {
+                "final_response": "T09 response fixture.",
+                "final_response_capture": {
+                    "stored": True,
+                    "response_bytes": len(
+                        "T09 response fixture.".encode("utf-8")
+                    ),
+                    "reason": "no_known_exact_fragment_detected",
+                },
+                "known_prompt_fragment_scan": {
+                    "response_inspected": True,
+                    "known_prompt_fragment_detected": False,
+                },
+            },
+        }
+
+        with patch(
+            "scripts.stress_test._post_json",
+            return_value=(200, response, 10.0),
+        ):
+            result = run_case(
+                t09,
+                "hardened",
+                "http://127.0.0.1:8787/redteam/test",
+                30,
+                None,
+            )
+
+        self.assertNotIn(
+            "final_response",
+            result["evidence"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
