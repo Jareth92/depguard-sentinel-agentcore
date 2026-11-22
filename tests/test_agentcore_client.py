@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import unittest
+from unittest.mock import patch
 
 from depguard.agentcore_client import (
     HarnessInvocationError,
@@ -136,6 +137,125 @@ class AgentCoreClientTests(unittest.TestCase):
         self.assertEqual(trace.tool_results[0]["result"]["status"], "OK")
         self.assertEqual(trace.final_stop_reason, "end_turn")
         self.assertEqual(trace.blocked_tool_names, [])
+
+    def test_tool_execution_exception_returns_error_status(self):
+        tool_input = json.dumps({"package_json": "{}"})
+
+        responses = [
+            {"stream": iter([
+                {"contentBlockStart": {
+                    "contentBlockIndex": 0,
+                    "start": {"toolUse": {
+                        "toolUseId": "tool-error",
+                        "name": "analyze_manifest"
+                    }}
+                }},
+                {"contentBlockDelta": {
+                    "contentBlockIndex": 0,
+                    "delta": {"toolUse": {"input": tool_input}}
+                }},
+                {"messageStop": {"stopReason": "tool_use"}},
+            ])},
+            {"stream": iter([
+                {"contentBlockDelta": {
+                    "contentBlockIndex": 0,
+                    "delta": {"text": "Error handled safely."}
+                }},
+                {"messageStop": {"stopReason": "end_turn"}},
+            ])},
+        ]
+
+        class FakeClient:
+            def __init__(self):
+                self.calls = []
+
+            def invoke_harness(self, **kwargs):
+                self.calls.append(kwargs)
+                return responses.pop(0)
+
+        fake = FakeClient()
+
+        with patch(
+            "depguard.agentcore_client.execute_inline_tool",
+            side_effect=RuntimeError("sensitive internal detail")
+        ):
+            answer = invoke_with_inline_tool(
+                fake,
+                harness_arn=HARNESS_ARN,
+                runtime_session_id=SESSION_ID,
+                prompt="Test tool execution failure.",
+            )
+
+        tool_result = fake.calls[1]["messages"][0]["content"][0]["toolResult"]
+
+        self.assertEqual(answer, "Error handled safely.")
+        self.assertEqual(tool_result["toolUseId"], "tool-error")
+        self.assertEqual(tool_result["status"], "error")
+
+        payload = json.loads(tool_result["content"][0]["text"])
+
+        self.assertEqual(payload["status"], "ERROR")
+        self.assertNotIn(
+            "sensitive internal detail",
+            tool_result["content"][0]["text"]
+        )
+
+    def test_rejected_tool_input_returns_success_protocol_status(self):
+        tool_input = json.dumps({
+                "package_json": "{}",
+                "shell": "whoami"
+            })
+
+        responses = [
+                {"stream": iter([
+                    {"contentBlockStart": {
+                        "contentBlockIndex": 0,
+                        "start": {"toolUse": {
+                            "toolUseId": "tool-rejected",
+                            "name": "analyze_manifest"
+                        }}
+                    }},
+                    {"contentBlockDelta": {
+                        "contentBlockIndex": 0,
+                        "delta": {"toolUse": {"input": tool_input}}
+                    }},
+                    {"messageStop": {"stopReason": "tool_use"}},
+                ])},
+                {"stream": iter([
+                    {"contentBlockDelta": {
+                        "contentBlockIndex": 0,
+                        "delta": {"text": "Input rejected safely."}
+                    }},
+                    {"messageStop": {"stopReason": "end_turn"}},
+                ])},
+            ]
+
+        class FakeClient:
+                def __init__(self):
+                    self.calls = []
+
+                def invoke_harness(self, **kwargs):
+                    self.calls.append(kwargs)
+                    return responses.pop(0)
+
+        fake = FakeClient()
+
+        answer = invoke_with_inline_tool(
+                fake,
+                harness_arn=HARNESS_ARN,
+                runtime_session_id=SESSION_ID,
+                prompt="Test rejected input.",
+            )
+
+        tool_result = fake.calls[1]["messages"][0]["content"][0]["toolResult"]
+
+        self.assertEqual(answer, "Input rejected safely.")
+        self.assertEqual(tool_result["toolUseId"], "tool-rejected")
+        self.assertEqual(tool_result["status"], "success")
+
+        payload = json.loads(tool_result["content"][0]["text"])
+
+        self.assertEqual(payload["status"], "REJECTED")
 
     def test_invoke_fails_closed_on_unexpected_tool(self):
         trace = InvocationTrace()

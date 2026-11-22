@@ -241,7 +241,10 @@ def invoke_with_inline_tool(
             raise HarnessInvocationError(f"La herramienta solicitada no está permitida: {state.tool_name!r}.")
 
         try:
-            tool_result = execute_inline_tool(state.tool_name, state.tool_input)
+            tool_result = execute_inline_tool(
+                state.tool_name,
+                state.tool_input
+            )
         except HarnessInvocationError:
             raise
         except Exception:
@@ -252,9 +255,19 @@ def invoke_with_inline_tool(
                 "trust_state": "TAINTED",
                 "validation": {
                     "input_rejected": True,
-                    "errors": [{"code": "TOOL_EXECUTION_ERROR", "message": "The local analysis tool could not complete safely."}],
+                    "errors": [{
+                        "code": "TOOL_EXECUTION_ERROR",
+                        "message": "The local analysis tool could not complete safely."
+                    }],
                 },
             }
+
+        # Map the local execution outcome to the Harness protocol status.
+        tool_result_status = (
+            "error"
+            if tool_result.get("status") == "ERROR"
+            else "success"
+        )
 
         if trace is not None:
             trace.tool_results.append({
@@ -271,7 +284,7 @@ def invoke_with_inline_tool(
                 "toolResult": {
                     "toolUseId": state.tool_use_id,
                     "content": [{"text": json.dumps(tool_result, ensure_ascii=False, separators=(",", ":"))}],
-                    "status": "success",
+                    "status": tool_result_status,
                 }
             }],
         }]
