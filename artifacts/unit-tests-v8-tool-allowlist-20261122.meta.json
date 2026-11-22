@@ -1,0 +1,16 @@
+{
+    "evidence_id": "unit-tests-v8-tool-allowlist",
+    "generated_at_local": "2026-11-22T15:30:49.915660-06:00",
+    "started_at_local": "2026-11-22T15:30:49.599067-06:00",
+    "command": "python -m unittest discover -s tests -v",
+    "git_commit": "69966002dc6ecdf49e67385bb5179d088567e8a7",
+    "result": "PASS",
+    "tests_run": 136,
+    "failures": 0,
+    "errors": 0,
+    "log_file": "unit-tests-v8-tool-allowlist-20261122.txt",
+    "sha256": "50a7e6882ff7e71f0b51d3f8c2b5fcdbf33e5e60a14e092abf9d858fa7a7fc72",
+    "log_encoding": "UTF-8",
+    "log_size_bytes": 18420,
+    "coverage_focus": "Strengthened fail-closed assertions for unauthorized AgentCore tools."
+}
