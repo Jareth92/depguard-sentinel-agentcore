@@ -1,0 +1,99 @@
+{
+  "schema_version": "1.0",
+  "project": "DepGuard Sentinel",
+  "evidence_type": "live_agentcore_dependency_inventory",
+  "recorded_at_local": "2026-11-22T15:18:16.681989-06:00",
+  "invocation_date": "2026-11-22",
+  "git_commit": "e67815ba47592ebe3f9212df542fee63f14b8a49",
+  "execution": {
+    "mode": "live",
+    "provider": "AWS",
+    "service": "Amazon Bedrock AgentCore",
+    "region": "us-east-1",
+    "profile_alias": "depguard-admin",
+    "assumed_role": "DepGuardDeveloperRole"
+  },
+  "input": {
+    "manifest_name": "depguard-live-dependencies-test",
+    "manifest_version": "1.0.0",
+    "manifest_sha256": "b0bec89dc95140736bc06d98cefec21490958c1379c998fb54b4ff115b560c70",
+    "dependency_count": 4,
+    "production_dependencies": 2,
+    "development_dependencies": 2,
+    "dependencies": [
+      {
+        "name": "express",
+        "version": "4.18.2",
+        "section": "dependencies"
+      },
+      {
+        "name": "lodash",
+        "version": "4.17.21",
+        "section": "dependencies"
+      },
+      {
+        "name": "jest",
+        "version": "29.7.0",
+        "section": "devDependencies"
+      },
+      {
+        "name": "eslint",
+        "version": "8.57.0",
+        "section": "devDependencies"
+      }
+    ]
+  },
+  "harness_cycle": {
+    "status": "PASS",
+    "tool_requests": 1,
+    "tool_results_recorded_locally": 1,
+    "blocked_tools": 0,
+    "tool_name": "analyze_manifest",
+    "argument_envelope_valid": true,
+    "manifest_json_valid": true,
+    "manifest_matches_expected": true,
+    "final_stop_reason": "end_turn",
+    "final_response_received": true
+  },
+  "local_analysis": {
+    "status": "OK",
+    "decision": "ANALYZE_ONLY",
+    "trust_state": "TAINTED",
+    "dependency_count": 4,
+    "by_section": {
+      "dependencies": 2,
+      "devDependencies": 2,
+      "optionalDependencies": 0,
+      "peerDependencies": 0
+    },
+    "findings_count": 0,
+    "risk_indicators_count": 0,
+    "all_specifiers_exact": true,
+    "non_registry_reference_count": 0,
+    "mutable_specifier_count": 0
+  },
+  "protocol": {
+    "local_ok_maps_to": "success",
+    "mapping_verified_in_source": true,
+    "outgoing_tool_result_status_captured_directly": false,
+    "assistant_end_turn_after_tool_result_submission": true
+  },
+  "security_scope": {
+    "vulnerability_assessment": "NOT_ASSESSED",
+    "database_lookup_performed": false,
+    "dependency_installation_performed": false,
+    "manifest_modified": false
+  },
+  "test_assertions": {
+    "passed": 13,
+    "total": 13,
+    "result": "PASS"
+  },
+  "redactions": {
+    "harness_arn_stored": false,
+    "aws_account_id_stored": false,
+    "runtime_session_id_stored": false,
+    "credentials_stored": false,
+    "raw_tool_input_stored": false
+  }
+}
