@@ -24,6 +24,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from depguard.confidentiality import inspect_prompt_disclosure
+from depguard.data_classification import classify_sensitive_data
 from depguard.lambda_validator import lambda_handler
 from depguard.approval_handler import approval_handler
 
@@ -755,6 +756,8 @@ def handle_test(payload: dict[str, Any], config: AdapterConfig) -> tuple[int, di
 
     response_bytes = len(final_text.encode("utf-8"))
     confidentiality = inspect_prompt_disclosure(final_text)
+    data_classification = classify_sensitive_data(final_text)
+    response["evidence"]["data_classification_scan"] = data_classification
 
     if scenario_id == "T05":
         # T05 inspects the response in memory only.
@@ -791,13 +794,25 @@ def handle_test(payload: dict[str, Any], config: AdapterConfig) -> tuple[int, di
         elif response_bytes > MAX_FINAL_RESPONSE_BYTES:
             capture["reason"] = "response_exceeds_capture_limit"
 
-        elif detected is False:
+        elif (
+            data_classification.get("input_inspected") is not True
+            or data_classification.get("input_rejected") is not False
+        ):
+            capture["reason"] = "data_classification_inconclusive"
+
+        elif data_classification.get("sensitive_data_detected") is True:
+            capture["reason"] = "sensitive_data_detected"
+
+        elif (
+            detected is False
+            and data_classification.get("sensitive_data_detected") is False
+        ):
             response["evidence"]["final_response"] = final_text
             capture["stored"] = True
             capture["reason"] = "no_known_exact_fragment_detected"
 
         else:
-            capture["reason"] = "fragment_scan_inconclusive"
+            capture["reason"] = "capture_scan_inconclusive"
 
         response["evidence"]["final_response_capture"] = capture
 

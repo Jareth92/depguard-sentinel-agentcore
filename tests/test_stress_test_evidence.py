@@ -157,6 +157,14 @@ class StressTestEvidenceTests(unittest.TestCase):
                     "response_inspected": True,
                     "known_prompt_fragment_detected": False,
                 },
+                "data_classification_scan": {
+                    "input_inspected": True,
+                    "input_rejected": False,
+                    "classification": "UNCLASSIFIED",
+                    "sensitive_data_detected": False,
+                    "detection_method": "LOCAL_PATTERN_MATCHING",
+                    "findings": [],
+                },
             },
         }
 
@@ -177,6 +185,158 @@ class StressTestEvidenceTests(unittest.TestCase):
             result["evidence"]["final_response"],
             final_response,
         )
+
+    def test_independent_recheck_blocks_sensitive_response(self):
+        sensitive_text = "Contact analyst@example.com for details."
+        response = {
+            "decision": "ANALYZE_ONLY",
+            "trust_state": "TAINTED",
+            "effects": {
+                "mutation_performed": False,
+                "approval_granted": False,
+            },
+            "evidence": {
+                "final_response": sensitive_text,
+                "final_response_capture": {
+                    "stored": True,
+                    "response_bytes": len(sensitive_text.encode("utf-8")),
+                    "reason": "no_known_exact_fragment_detected",
+                },
+                "known_prompt_fragment_scan": {
+                    "response_inspected": True,
+                    "known_prompt_fragment_detected": False,
+                },
+                # Deliberately forged clean metadata: the independent
+                # report-side scan must still catch the email.
+                "data_classification_scan": {
+                    "input_inspected": True,
+                    "input_rejected": False,
+                    "classification": "UNCLASSIFIED",
+                    "sensitive_data_detected": False,
+                    "detection_method": "LOCAL_PATTERN_MATCHING",
+                    "findings": [],
+                },
+            },
+        }
+
+        with patch(
+            "scripts.stress_test._post_json",
+            return_value=(200, response, 10.0),
+        ):
+            result = run_case(
+                self.scenario,
+                "hardened",
+                "http://127.0.0.1:8787/redteam/test",
+                30,
+                None,
+            )
+
+        self.assertNotIn("final_response", result["evidence"])
+        self.assertNotIn(sensitive_text, json.dumps(result))
+        recheck = result["evidence"]["data_classification_recheck"]
+        self.assertTrue(recheck["sensitive_data_detected"])
+        self.assertEqual(recheck["classification"], "CONFIDENTIAL")
+
+    def test_missing_adapter_scan_fails_closed(self):
+        safe_text = "The manifest was analyzed in read-only mode."
+        response = {
+            "decision": "ANALYZE_ONLY",
+            "trust_state": "TAINTED",
+            "effects": {
+                "mutation_performed": False,
+                "approval_granted": False,
+            },
+            "evidence": {
+                "final_response": safe_text,
+                "final_response_capture": {
+                    "stored": True,
+                    "response_bytes": len(safe_text.encode("utf-8")),
+                    "reason": "no_known_exact_fragment_detected",
+                },
+                "known_prompt_fragment_scan": {
+                    "response_inspected": True,
+                    "known_prompt_fragment_detected": False,
+                },
+            },
+        }
+
+        with patch(
+            "scripts.stress_test._post_json",
+            return_value=(200, response, 10.0),
+        ):
+            result = run_case(
+                self.scenario,
+                "hardened",
+                "http://127.0.0.1:8787/redteam/test",
+                30,
+                None,
+            )
+
+        self.assertNotIn("final_response", result["evidence"])
+        self.assertNotIn(safe_text, json.dumps(result))
+
+    def test_preserves_sanitized_classification_when_response_is_blocked(self):
+        sensitive_text = "analyst@example.com"
+
+        response = {
+            "decision": "ANALYZE_ONLY",
+            "trust_state": "TAINTED",
+            "effects": {
+                "mutation_performed": False,
+                "approval_granted": False,
+            },
+            "evidence": {
+                "final_response_capture": {
+                    "stored": False,
+                    "response_bytes": len(sensitive_text.encode("utf-8")),
+                    "reason": "sensitive_data_detected",
+                },
+                "data_classification_scan": {
+                    "input_inspected": True,
+                    "input_rejected": False,
+                    "classification": "CONFIDENTIAL",
+                    "sensitive_data_detected": True,
+                    "detection_method": "LOCAL_PATTERN_MATCHING",
+                    "findings": [{
+                        "code": "EMAIL_ADDRESS_CANDIDATE",
+                        "category": "PERSONAL_DATA",
+                        "classification": "CONFIDENTIAL",
+                        "match_count": 1,
+                        "matched_value": sensitive_text,
+                    }],
+                },
+            },
+        }
+
+        with patch(
+            "scripts.stress_test._post_json",
+            return_value=(200, response, 10.0),
+        ):
+            result = run_case(
+                self.scenario,
+                "hardened",
+                "http://127.0.0.1:8787/redteam/test",
+                30,
+                None,
+            )
+
+        self.assertNotIn("final_response", result["evidence"])
+
+        scan = result["evidence"]["data_classification_scan"]
+        self.assertEqual(scan["classification"], "CONFIDENTIAL")
+        self.assertTrue(scan["sensitive_data_detected"])
+        self.assertEqual(
+            scan["findings"],
+            [{
+                "code": "EMAIL_ADDRESS_CANDIDATE",
+                "category": "PERSONAL_DATA",
+                "classification": "CONFIDENTIAL",
+                "match_count": 1,
+            }],
+        )
+
+        self.assertNotIn(sensitive_text, json.dumps(result))
+        self.assertNotIn("matched_value", json.dumps(result))
 
     def test_never_preserves_t05_final_response(self):
         t05 = next(
