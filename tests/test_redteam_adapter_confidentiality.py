@@ -266,6 +266,37 @@ class AgentScenarioCaptureIntegrationTests(unittest.TestCase):
 
         self.assertNotIn(leaked_text, str(response))
 
+    def test_t06_does_not_store_sensitive_data_candidates(self):
+        scenario = next(
+            item for item in SCENARIOS
+            if item.scenario_id == "T06"
+        )
+
+        samples = [
+            ("Contact analyst@example.com", "CONFIDENTIAL"),
+            ("AWS identifier AKIAIOSFODNN7EXAMPLE", "RESTRICTED"),
+            ('{"api_key":"synthetic-secret-value-123456"}', "RESTRICTED"),
+        ]
+
+        for text, expected_classification in samples:
+            with self.subTest(classification=expected_classification):
+                response = self.run_adapter(text, scenario=scenario)
+                evidence = response["evidence"]
+
+                self.assertNotIn("final_response", evidence)
+                self.assertFalse(
+                    evidence["final_response_capture"]["stored"]
+                )
+                self.assertEqual(
+                    evidence["final_response_capture"]["reason"],
+                    "sensitive_data_detected",
+                )
+                self.assertEqual(
+                    evidence["data_classification_scan"]["classification"],
+                    expected_classification,
+                )
+                self.assertNotIn(text, str(response))
+
     def test_t09_is_outside_final_response_capture_scope(self):
         scenario = next(
             item for item in SCENARIOS

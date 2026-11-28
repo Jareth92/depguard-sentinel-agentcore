@@ -5,7 +5,7 @@ This runner talks to a project-owned HTTP test adapter. It does NOT call AWS
 AgentCore APIs directly. The adapter is responsible for invoking the Harness,
 handling inline-function handoffs, and dispatching component-level test cases.
 
-Standard library only; Python 3.10+.
+Python 3.10+; standard library plus the local DepGuard classifier.
 """
 from __future__ import annotations
 
@@ -22,6 +22,12 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+from depguard.data_classification import classify_sensitive_data
 
 CONTRACT_VERSION = "1.0"
 USER_AGENT = "DepGuardSentinel-RedTeam/0.1"
@@ -724,12 +730,128 @@ def run_case(scenario: Scenario, mode: str, url: str, timeout: float, token: str
             if key in raw_evidence
         }
 
+        # Preserve only allowlisted classification metadata.
+        # Never copy arbitrary fields or matched values into the report.
+        adapter_scan = raw_evidence.get("data_classification_scan")
+
+        if isinstance(adapter_scan, dict):
+            allowed_findings = {
+                "PRIVATE_KEY_MARKER": (
+                    "CREDENTIAL_MATERIAL", "RESTRICTED"
+                ),
+                "AWS_ACCESS_KEY_ID_CANDIDATE": (
+                    "CLOUD_CREDENTIAL_IDENTIFIER", "RESTRICTED"
+                ),
+                "GITHUB_TOKEN_CANDIDATE": (
+                    "ACCESS_TOKEN", "RESTRICTED"
+                ),
+                "BEARER_TOKEN_CANDIDATE": (
+                    "ACCESS_TOKEN", "RESTRICTED"
+                ),
+                "GENERIC_CREDENTIAL_ASSIGNMENT": (
+                    "CREDENTIAL_MATERIAL", "RESTRICTED"
+                ),
+                "EMAIL_ADDRESS_CANDIDATE": (
+                    "PERSONAL_DATA", "CONFIDENTIAL"
+                ),
+            }
+
+            safe_findings = []
+            raw_findings = adapter_scan.get("findings")
+
+            if isinstance(raw_findings, list):
+                for item in raw_findings:
+                    if not isinstance(item, dict):
+                        continue
+
+                    code = item.get("code")
+                    expected = allowed_findings.get(code)
+
+                    if (
+                        expected is not None
+                        and item.get("category") == expected[0]
+                        and item.get("classification") == expected[1]
+                        and type(item.get("match_count")) is int
+                        and item["match_count"] > 0
+                    ):
+                        safe_findings.append({
+                            "code": code,
+                            "category": expected[0],
+                            "classification": expected[1],
+                            "match_count": item["match_count"],
+                        })
+
+            reported_classification = adapter_scan.get("classification")
+
+            evidence_summary["data_classification_scan"] = {
+                "input_inspected": (
+                    adapter_scan.get("input_inspected") is True
+                ),
+                "input_rejected": (
+                    adapter_scan.get("input_rejected") is True
+                ),
+                "classification": (
+                    reported_classification
+                    if reported_classification in {
+                        "UNCLASSIFIED", "CONFIDENTIAL", "RESTRICTED"
+                    }
+                    else None
+                ),
+                "sensitive_data_detected": (
+                    adapter_scan.get("sensitive_data_detected")
+                    if type(adapter_scan.get("sensitive_data_detected")) is bool
+                    else None
+                ),
+                "detection_method": (
+                    "LOCAL_PATTERN_MATCHING"
+                    if adapter_scan.get("detection_method")
+                        == "LOCAL_PATTERN_MATCHING"
+                    else None
+                ),
+                "findings": safe_findings,
+            }
+
         # Preserve final model text only when the adapter confirms
         # that the response was inspected and approved for local capture.
         # T05 is explicitly excluded, even if an adapter returns raw text.
         capture_metadata = raw_evidence.get("final_response_capture")
         fragment_scan = raw_evidence.get("known_prompt_fragment_scan")
+        adapter_classification_scan = raw_evidence.get(
+            "data_classification_scan"
+        )
         captured_text = raw_evidence.get("final_response")
+
+        # Independently re-scan before any final response can enter
+        # the report. Only classification metadata is retained.
+        local_classification_scan = (
+            classify_sensitive_data(captured_text)
+            if isinstance(captured_text, str)
+            else None
+        )
+
+        if isinstance(local_classification_scan, dict):
+            evidence_summary["data_classification_recheck"] = {
+                "input_inspected": local_classification_scan.get(
+                    "input_inspected"
+                ),
+                "input_rejected": local_classification_scan.get(
+                    "input_rejected"
+                ),
+                "classification": local_classification_scan.get(
+                    "classification"
+                ),
+                "sensitive_data_detected": (
+                    local_classification_scan.get(
+                        "sensitive_data_detected"
+                    )
+                ),
+                "detection_method": local_classification_scan.get(
+                    "detection_method"
+                ),
+                "findings": local_classification_scan.get(
+                    "findings", []
+                ),
+            }
 
         if (
             scenario.scenario_id in FINAL_RESPONSE_CAPTURE_SCENARIOS
@@ -746,6 +868,19 @@ def run_case(scenario: Scenario, mode: str, url: str, timeout: float, token: str
             and capture_metadata["response_bytes"]
                 == len(captured_text.encode("utf-8"))
             and capture_metadata["response_bytes"] <= 8 * 1024
+            and isinstance(adapter_classification_scan, dict)
+            and adapter_classification_scan.get("input_inspected") is True
+            and adapter_classification_scan.get("input_rejected") is False
+            and adapter_classification_scan.get("classification") == "UNCLASSIFIED"
+            and adapter_classification_scan.get("sensitive_data_detected") is False
+            and adapter_classification_scan.get("findings") == []
+            and adapter_classification_scan.get("detection_method") == "LOCAL_PATTERN_MATCHING"
+            and isinstance(local_classification_scan, dict)
+            and local_classification_scan.get("input_inspected") is True
+            and local_classification_scan.get("input_rejected") is False
+            and local_classification_scan.get("classification") == "UNCLASSIFIED"
+            and local_classification_scan.get("sensitive_data_detected") is False
+            and local_classification_scan.get("findings") == []
         ):
             evidence_summary["final_response"] = captured_text
 
